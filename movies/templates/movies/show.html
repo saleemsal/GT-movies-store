@@ -3,82 +3,110 @@
 {% load static %}
 <div class="p-3">
   <div class="container">
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} mb-3">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+
     <div class="row mt-3">
       <div class="col-md-6 mx-auto mb-3">
         <h2>{{ template_data.movie.name }}</h2>
         <hr />
-        <p><b>Description:</b> {{template_data.movie.description }}</p>
-        <p><b>Price:</b> ${{template_data.movie.price }}</p>
+        <p><b>Description:</b> {{ template_data.movie.description }}</p>
+        <p><b>Price:</b> ${{ template_data.movie.price }}</p>
 
-        <p class="card-text">
-          <form method="post"
-            action="{% url 'cart.add' id=template_data.movie.id %}">
-            <div class="row">
-              {% csrf_token %}
-              <div class="col-auto">
-                <div class="input-group col-auto">
-                  <div class="input-group-text">Quantity
-                    </div>
-                  <input type="number" min="1" max="10"
-                    class="form-control quantity-input"
-                    name="quantity" value="1">
+        {% if template_data.movie.amount_left is not None %}
+          <p><b>Amount left:</b> {{ template_data.movie.amount_left }}</p>
+        {% else %}
+          <p><b>Amount left:</b> Unlimited</p>
+        {% endif %}
+
+        <!-- Quick "Purchase 1" action (decrements amount_left by 1) -->
+        {% if user.is_authenticated %}
+          {% if template_data.movie.amount_left is None or template_data.movie.amount_left > 0 %}
+            <a class="btn btn-primary mb-3"
+               href="{% url 'movies.purchase' template_data.movie.id %}">
+              Purchase 1
+            </a>
+          {% else %}
+            <button class="btn btn-secondary mb-3" disabled>Sold out</button>
+          {% endif %}
+        {% else %}
+          <a class="btn btn-outline-secondary mb-3" href="{% url 'login' %}">
+            Log in to purchase
+          </a>
+        {% endif %}
+
+        <!-- Add to cart (disabled when sold out; max capped by stock if provided) -->
+        {% if template_data.movie.amount_left == 0 %}
+          <div class="alert alert-warning">This title is sold out and cannot be added to the cart.</div>
+        {% else %}
+          <p class="card-text">
+            <form method="post" action="{% url 'cart.add' id=template_data.movie.id %}">
+              <div class="row">
+                {% csrf_token %}
+                <div class="col-auto">
+                  <div class="input-group col-auto">
+                    <div class="input-group-text">Quantity</div>
+                    <input
+                      type="number"
+                      min="1"
+                      {% if template_data.movie.amount_left and template_data.movie.amount_left < 10 %}
+                        max="{{ template_data.movie.amount_left }}"
+                      {% else %}
+                        max="10"
+                      {% endif %}
+                      class="form-control quantity-input"
+                      name="quantity"
+                      value="1">
+                  </div>
+                </div>
+                <div class="col-auto">
+                  <button class="btn bg-dark text-white" type="submit">Add to cart</button>
                 </div>
               </div>
-              <div class="col-auto">
-                <button class="btn bg-dark text-white"
-                  type="submit">Add to cart</button>
-              </div>
-            </div>
-          </form>
-        </p>
+            </form>
+          </p>
+        {% endif %}
 
         <h2>Reviews</h2>
         <hr />
         <ul class="list-group">
           {% for review in template_data.reviews %}
           <li class="list-group-item pb-3 pt-3">
-            <h5 class="card-title">
-              Review by {{ review.user.username }}
-            </h5>
-            <h6 class="card-subtitle mb-2 text-muted">
-              {{ review.date }}
-            </h6>
+            <h5 class="card-title">Review by {{ review.user.username }}</h5>
+            <h6 class="card-subtitle mb-2 text-muted">{{ review.date }}</h6>
             <p class="card-text">{{ review.comment }}</p>
 
             {% if user.is_authenticated and user == review.user %}
-            <a class="btn btn-primary"
-              href="{% url 'movies.edit_review' id=template_data.movie.id review_id=review.id %}">Edit
-            </a>
-            <a class="btn btn-danger"
-              href="{% url 'movies.delete_review' id=template_data.movie.id review_id=review.id %}">Delete
-            </a>
+              <a class="btn btn-primary"
+                 href="{% url 'movies.edit_review' id=template_data.movie.id review_id=review.id %}">Edit</a>
+              <a class="btn btn-danger"
+                 href="{% url 'movies.delete_review' id=template_data.movie.id review_id=review.id %}">Delete</a>
             {% endif %}
           </li>
+          {% empty %}
+            <li class="list-group-item">No reviews yet.</li>
           {% endfor %}
         </ul>
-        
+
         {% if user.is_authenticated %}
         <div class="container mt-4">
           <div class="row justify-content-center">
             <div class="col-12">
               <div class="card shadow p-3 mb-4 rounded">
                 <div class="card-body">
-                  <b class="text-start">Create a review
-                    </b><br /><br />
-                  <form method="POST" action=
-                    "{% url 'movies.create_review' id=template_data.movie.id %}">
+                  <b class="text-start">Create a review</b><br /><br />
+                  <form method="POST" action="{% url 'movies.create_review' id=template_data.movie.id %}">
                     {% csrf_token %}
                     <p>
                       <label for="comment">Comment:</label>
-                      <textarea name="comment" required
-                      class="form-control"
-                      id="comment"></textarea>
+                      <textarea name="comment" required class="form-control" id="comment"></textarea>
                     </p>
                     <div class="text-center">
-                      <button type="submit"
-                        class="btn bg-dark text-white">
-                        Add Review
-                      </button>
+                      <button type="submit" class="btn bg-dark text-white">Add Review</button>
                     </div>
                   </form>
                 </div>
@@ -88,9 +116,11 @@
         </div>
         {% endif %}
       </div>
+
       <div class="col-md-6 mx-auto mb-3 text-center">
-        <img src="{{ template_data.movie.image.url }}"
-          class="rounded img-card-400" />
+        {% if template_data.movie.image %}
+          <img src="{{ template_data.movie.image.url }}" class="rounded img-card-400" alt="{{ template_data.movie.name }}" />
+        {% endif %}
       </div>
     </div>
   </div>
