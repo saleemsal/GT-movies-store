@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Include Movie Petitions</h1>
+<p><a href="{% url 'petitions:create' %}" class="btn btn-primary">Create Petition</a></p>
+
+<ul>
+  {% for p in petitions %}
+    <li>
+      <a href="{% url 'petitions:detail' p.pk %}">
+        {{ p.title }} — “{{ p.suggested_movie_title }}”
+      </a>
+      <small>by {{ p.created_by }} · {{ p.created_at|date:"M d, Y H:i" }}</small>
+      <div>Yes votes: {{ p.yes_count }}</div>
+    </li>
+  {% empty %}
+    <li>No petitions yet.</li>
+  {% endfor %}
+</ul>
+
+{% if is_paginated %}
+  <nav>
+    {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Prev</a>{% endif %}
+    <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+  </nav>
+{% endif %}
+{% endblock %}
